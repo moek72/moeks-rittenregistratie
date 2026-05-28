@@ -31,6 +31,48 @@ function getLastKmEnd() {
   return '';
 }
 
+function getLastCompletedTripIndex() {
+  for (let i = trips.length - 1; i >= 0; i -= 1) {
+    const kmEnd = Number(trips[i].kmEnd);
+    if (Number.isFinite(kmEnd) && kmEnd >= 0) return i;
+  }
+  return -1;
+}
+
+function reconcileLastTripWithStartKm(kmStart) {
+  const lastIdx = getLastCompletedTripIndex();
+  if (lastIdx < 0) return true;
+
+  const previousTrip = trips[lastIdx];
+  const previousEnd = Number(previousTrip.kmEnd);
+  if (previousEnd === kmStart) return true;
+
+  const previousStart = Number(previousTrip.kmStart);
+  if (Number.isFinite(previousStart) && kmStart <= previousStart) {
+    toast('Beginstand is lager dan de vorige rit kan hebben. Controleer de km-stand.');
+    return false;
+  }
+
+  const difference = kmStart - previousEnd;
+  const label = difference > 0 ? `${difference} km hoger` : `${Math.abs(difference)} km lager`;
+  const shouldUpdate = confirm(
+    `De beginstand (${kmStart} km) wijkt af van de laatste eindstand (${previousEnd} km).\n\n` +
+    `Wil je de vorige rit automatisch terugrekenen naar ${kmStart} km? ` +
+    `Dat maakt de vorige rit ${label}.`
+  );
+
+  if (!shouldUpdate) return true;
+
+  previousTrip.kmEnd = kmStart;
+  previousTrip.km = kmStart - previousTrip.kmStart;
+  previousTrip.correctedAt = new Date().toISOString();
+  saveTrips();
+  updateStats();
+  renderTrips();
+  toast('Vorige rit bijgewerkt met de nieuwe beginstand');
+  return true;
+}
+
 // â”€â”€ Tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function initTabs() {
@@ -299,6 +341,7 @@ function initStartModal() {
   document.getElementById('btn-start-confirm').addEventListener('click', () => {
     const km = parseInt(document.getElementById('start-km').value, 10);
     if (!Number.isFinite(km) || km < 0) { toast('Voer een geldige beginstand in'); return; }
+    if (!reconcileLastTripWithStartKm(km)) return;
 
     activeTrip = {
       startDateTime:  new Date().toISOString(),

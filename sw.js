@@ -1,6 +1,6 @@
 ﻿// Moek's Rittenregistratie â€” service worker (cache-first)
 
-const CACHE = 'moeks-ritten-v2';
+const CACHE = 'moeks-ritten-v3';
 
 const ASSETS = [
   './',
